@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HKDSE Physics: Power & Heating Simulator (P = E/t)</title>
+    <!-- Tailwind CSS for UI Layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        physics: {
+                            blue: '#00d2ff',
+                            orange: '#ff6b00',
+                            red: '#ef4444',
+                            glow: '#ffea00',
+                            darkBg: '#0f172a',
+                            cardBg: '#1e293b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glow-orange {
+            box-shadow: 0 0 15px rgba(255, 107, 0, 0.4);
+        }
+
+        .glow-blue {
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+        }
+
+        input[type=range] {
+            accent-color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-6 text-slate-100">
+
+    <!-- Header Title Bar -->
+    <header class="max-w-7xl w-full mx-auto mb-4 glass-panel rounded-2xl p-4 md:p-5 flex flex-col md:flex-row justify-between items-center shadow-2xl border-l-4 border-l-cyan-400">
+        <div class="flex items-center gap-3 mb-2 md:mb-0">
+            <div class="p-3 bg-cyan-500/20 text-cyan-400 rounded-xl">
+                <i class="fa-solid fa-bolt text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-wide bg-gradient-to-r from-cyan-400 via-sky-300 to-amber-400 bg-clip-text text-transparent">
+                    HKDSE Physics: Power & Heating Simulator
+                </h1>
+                <p class="text-xs md:text-sm text-slate-400">
+                    Interactive Demonstration of <span class="font-mono text-cyan-300">P = E / t</span> and <span class="font-mono text-amber-300">E = m c ΔT</span>
+                </p>
+            </div>
+        </div>
+        <div class="flex gap-2 text-xs font-semibold">
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-atom text-cyan-400"></i> c = 4200 J kg⁻¹ °C⁻¹
+            </span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-cloud-file text-amber-400"></i> Lᵥ = 2.26×10⁶ J kg⁻¹
+            </span>
+        </div>
+    </header>
+
+    <main class="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+
+        <!-- LEFT COLUMN: Visual Animation Canvas & Thermometer (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-4 flex flex-col h-full shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-flask-vial text-cyan-400"></i> Heating Chamber Animation
+                    </h2>
+                    <span id="stateBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-700 text-slate-300 font-mono">
+                        Ready
+                    </span>
+                </div>
+
+                <!-- Main Physics Canvas Container -->
+                <div class="relative w-full h-[380px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex justify-center items-center">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Live Dynamic Water Temp Display Overlay -->
+                    <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-700/60 rounded-xl p-2.5 text-xs flex flex-col gap-1 shadow-md">
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-400">Temp (T):</span>
+                            <span id="overlayTemp" class="font-mono text-amber-400 font-bold">20.0 °C</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-400">Energy (E):</span>
+                            <span id="overlayEnergy" class="font-mono text-cyan-400 font-bold">0.00 kJ</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-400">Molecule Speed:</span>
+                            <span id="overlaySpeed" class="font-mono text-emerald-400 font-bold">Low</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Control Sliders & Graphs (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+
+            <!-- Controls Panel -->
+            <div class="glass-panel rounded-2xl p-5 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i> Variable Control Sliders
+                    </h2>
+                    
+                    <!-- Sim Play/Pause/Reset Controls -->
+                    <div class="flex items-center gap-2">
+                        <button id="btnPlayPause" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 transition shadow-lg shadow-cyan-500/20 active:scale-95">
+                            <i class="fa-solid fa-play" id="playIcon"></i> <span id="playBtnText">Start Simulation</span>
+                        </button>
+                        <button id="btnReset" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition active:scale-95">
+                            <i class="fa-solid fa-rotate-right"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sliders Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    <!-- Slider 1: Power (P) -->
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="sliderPower" class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-plug text-amber-400"></i> Heater Power (P)
+                            </label>
+                            <span id="valPower" class="font-mono text-xs text-amber-400 font-bold">1000 W</span>
+                        </div>
+                        <input type="range" id="sliderPower" min="100" max="3000" step="100" value="1000" class="w-full h-2 bg-slate-700 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>100 W</span>
+                            <span>1500 W</span>
+                            <span>3000 W</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider 2: Mass of Water (m) -->
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="sliderMass" class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-weight-hanging text-cyan-400"></i> Mass of Water (m)
+                            </label>
+                            <span id="valMass" class="font-mono text-xs text-cyan-400 font-bold">0.50 kg</span>
+                        </div>
+                        <input type="range" id="sliderMass" min="0.10" max="1.00" step="0.05" value="0.50" class="w-full h-2 bg-slate-700 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>0.10 kg</span>
+                            <span>0.50 kg</span>
+                            <span>1.00 kg</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider 3: Initial Temp (T0) -->
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="sliderT0" class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-temperature-arrow-down text-emerald-400"></i> Initial Temp (T₀)
+                            </label>
+                            <span id="valT0" class="font-mono text-xs text-emerald-400 font-bold">20 °C</span>
+                        </div>
+                        <input type="range" id="sliderT0" min="10" max="50" step="1" value="20" class="w-full h-2 bg-slate-700 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>10 °C</span>
+                            <span>30 °C</span>
+                            <span>50 °C</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider 4: Efficiency (η) -->
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="sliderEff" class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-gauge-high text-purple-400"></i> Efficiency (η)
+                            </label>
+                            <span id="valEff" class="font-mono text-xs text-purple-400 font-bold">100 %</span>
+                        </div>
+                        <input type="range" id="sliderEff" min="50" max="100" step="5" value="100" class="w-full h-2 bg-slate-700 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>50% (Heat Loss)</span>
+                            <span>75%</span>
+                            <span>100% (Ideal)</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Time Speed Buttons -->
+                <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-800 text-xs">
+                    <span class="text-slate-400">Simulation Speed:</span>
+                    <div class="flex gap-1.5">
+                        <button class="btn-speed px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition" data-speed="1">1x</button>
+                        <button class="btn-speed px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition" data-speed="2">2x</button>
+                        <button class="btn-speed px-3 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold" data-speed="5">5x</button>
+                        <button class="btn-speed px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition" data-speed="10">10x</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-Time Graphs Canvas Container -->
+            <div class="glass-panel rounded-2xl p-4 shadow-lg flex flex-col gap-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i> Live Graphical Analysis
+                    </h2>
+                    <div class="flex gap-4 text-xs">
+                        <span class="flex items-center gap-1 text-amber-400 font-medium">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> T - t Curve
+                        </span>
+                        <span class="flex items-center gap-1 text-cyan-400 font-medium">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> E - t Curve
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 h-[210px]">
+                    <!-- Graph 1: Temp vs Time -->
+                    <div class="relative w-full h-full bg-slate-950 rounded-xl p-2 border border-slate-800">
+                        <canvas id="graphTempCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                    <!-- Graph 2: Energy vs Time -->
+                    <div class="relative w-full h-full bg-slate-950 rounded-xl p-2 border border-slate-800">
+                        <canvas id="graphEnergyCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- SECTION 2: Dynamic Live HKDSE Step-by-Step Calculation Box -->
+    <section class="max-w-7xl w-full mx-auto mb-6 glass-panel rounded-2xl p-5 shadow-2xl border-t-2 border-t-purple-500">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-calculator text-purple-400"></i> Live HKDSE Formula Calculation Step-By-Step
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+            
+            <!-- Step 1: Power & Electrical Energy -->
+            <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <span class="text-cyan-400 font-bold block mb-1">1. Electrical Energy Supplied (E)</span>
+                    <p class="text-slate-400 mb-2">Equation: <span class="text-slate-200">E = P × t</span></p>
+                    <div class="space-y-1 text-slate-300">
+                        <p>P = <span id="calcP" class="text-amber-400">1000</span> W</p>
+                        <p>t = <span id="calcT" class="text-cyan-400">0.0</span> s</p>
+                        <div class="pt-2 border-t border-slate-800 text-sm font-bold text-cyan-300">
+                            E = <span id="calcE">0.00</span> kJ
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-3">Gradient of E-t graph equals Power (P).</p>
+            </div>
+
+            <!-- Step 2: Useful Heat Absorbed -->
+            <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <span class="text-purple-400 font-bold block mb-1">2. Useful Heat Absorbed (Q)</span>
+                    <p class="text-slate-400 mb-2">Equation: <span class="text-slate-200">Q = E × Efficiency (η)</span></p>
+                    <div class="space-y-1 text-slate-300">
+                        <p>E = <span id="calcE2" class="text-cyan-400">0.00</span> kJ</p>
+                        <p>η = <span id="calcEff" class="text-purple-400">100</span> %</p>
+                        <div class="pt-2 border-t border-slate-800 text-sm font-bold text-purple-300">
+                            Q = <span id="calcQ">0.00</span> kJ
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-3">When η < 100%, heat is lost to surroundings.</p>
+            </div>
+
+            <!-- Step 3: Temperature Rise & Specific Heat Capacity -->
+            <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <span class="text-amber-400 font-bold block mb-1">3. Temperature Change (ΔT)</span>
+                    <p class="text-slate-400 mb-2">Equation: <span class="text-slate-200">Q = m c ΔT  ⇒  ΔT = Q / (m × c)</span></p>
+                    <div class="space-y-1 text-slate-300">
+                        <p>m = <span id="calcM" class="text-cyan-400">0.50</span> kg, c = 4200 J kg⁻¹ °C⁻¹</p>
+                        <p>Theoretical Slope = <span id="calcSlope" class="text-amber-400">0.476</span> °C/s</p>
+                        <div class="pt-2 border-t border-slate-800 text-sm font-bold text-amber-300">
+                            Current T = <span id="calcCurrentT">20.0</span> °C
+                        </div>
+                    </div>
+                </div>
+                <p id="latentHeatNotice" class="text-[10px] text-slate-400 mt-3 italic">
+                    Below 100°C: Kinetic energy of molecules increases.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION 3: HKDSE Physics Exam Revision & Interactive Concept Checkpoint -->
+    <section class="max-w-7xl w-full mx-auto mb-6 glass-panel rounded-2xl p-5 shadow-2xl">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-graduation-cap text-cyan-400"></i> HKDSE Physics Concept Revision & Exam Focus
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-300">
+            
+            <!-- Summary Notes Column -->
+            <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                <h3 class="font-bold text-sm text-cyan-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-bookmark"></i> Key Physics Relationships for HKDSE
+                </h3>
+                <ul class="space-y-2 list-disc list-inside text-slate-300 leading-relaxed">
+                    <li>
+                        <strong class="text-amber-300">Slope of T-t Graph:</strong> $\text{Slope} = \frac{\Delta T}{\Delta t} = \frac{P \cdot \eta}{m \cdot c}$.
+                        Higher power $P$ or smaller mass $m$ leads to a <em class="text-amber-300">steeper gradient</em>.
+                    </li>
+                    <li>
+                        <strong class="text-purple-300">Heat Loss & Efficiency ($\eta$):</strong> In practical HKDSE experiments, the measured $c$ is usually <em class="text-purple-300">larger</em> than the actual value because some energy $E$ escapes into surroundings without raising water temp.
+                    </li>
+                    <li>
+                        <strong class="text-emerald-300">Flat Line at 100°C (Boiling):</strong> When water reaches $100^\circ\text{C}$, temperature stops rising ($\Delta T = 0$). Useful energy turns into <em class="text-emerald-300">latent heat of vaporization ($Q = m L_v$)</em> to break intermolecular bonds without increasing kinetic energy.
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Accordion Practice Questions -->
+            <div class="space-y-2">
+                <h3 class="font-bold text-sm text-amber-300 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-question"></i> HKDSE Exam Concept Questions
+                </h3>
+
+                <!-- Q1 -->
+                <details class="group bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden transition">
+                    <summary class="p-3 font-semibold cursor-pointer flex justify-between items-center group-hover:text-cyan-300">
+                        <span>Q1: Why does the slope of the T-t graph decrease if mass of water is doubled?</span>
+                        <i class="fa-solid fa-chevron-down text-slate-500 group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="p-3 pt-0 border-t border-slate-800/50 text-slate-400 bg-slate-950/40">
+                        Since $\text{Slope} = \frac{P \eta}{m c}$, slope is inversely proportional to mass $m$. Doubling $m$ doubles the heat capacity ($m c$), requiring twice as much energy per degree temp rise, halving the slope.
+                    </div>
+                </details>
+
+                <!-- Q2 -->
+                <details class="group bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden transition">
+                    <summary class="p-3 font-semibold cursor-pointer flex justify-between items-center group-hover:text-cyan-300">
+                        <span>Q2: What happens to energy transfer when temperature reaches 100°C?</span>
+                        <i class="fa-solid fa-chevron-down text-slate-500 group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="p-3 pt-0 border-t border-slate-800/50 text-slate-400 bg-slate-950/40">
+                        Temperature remains constant at $100^\circ\text{C}$. The electrical energy supplied is absorbed as latent heat of vaporization ($Q = m L_v$) to separate water molecules completely, producing steam.
+                    </div>
+                </details>
+
+                <!-- Q3 -->
+                <details class="group bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden transition">
+                    <summary class="p-3 font-semibold cursor-pointer flex justify-between items-center group-hover:text-cyan-300">
+                        <span>Q3: How does heat loss (η < 100%) affect experimental determination of c?</span>
+                        <i class="fa-solid fa-chevron-down text-slate-500 group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="p-3 pt-0 border-t border-slate-800/50 text-slate-400 bg-slate-950/40">
+                        If heat loss is ignored ($E_{supplied}$ assumed $= Q_{absorbed}$), $c_{exp} = \frac{P t}{m \Delta T}$. Since actual $Q_{absorbed} < P t$, the calculated $c_{exp}$ will be <strong>overestimated</strong> (larger than theoretical $4200 \text{ J kg}^{-1} \text{ }^\circ\text{C}^{-1}$).
+                    </div>
+                </details>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl w-full mx-auto text-center text-xs text-slate-500 py-2">
+        HKDSE Physics Interactive Physics Engine &bull; Power ($P=E/t$), Specific Heat Capacity ($c=4200$), Latent Heat ($L_v=2.26\times 10^6$)
+    </footer>
+
+    <script>
+        
+        // Physics Constants (HKDSE Standards)
+        const C_WATER = 4200; // Specific Heat Capacity of Water: 4200 J/kg/°C
+        const LV_WATER = 2260000; // Latent Heat of Vaporization: 2.26 x 10^6 J/kg
+        const T_BOIL = 100.0; // Boiling point °C
+
+        // Simulation State
+        const state = {
+            power: 1000,      // Watts (W)
+            mass: 0.50,       // Kilograms (kg)
+            t0: 20,           // Initial Temp (°C)
+            efficiency: 1.0,  // 1.0 = 100%
+            simSpeed: 5,      // Time speed multiplier
+            
+            // Dynamic runtime variables
+            isRunning: false,
+            timeElapsed: 0,   // Simulated seconds
+            currentTemp: 20.0,
+            energySupplied: 0,// Joules (J)
+            energyUseful: 0,  // Joules (J)
+            energyBoiling: 0, // Joules spent in latent heat
+            steamMass: 0,     // Mass boiled off in kg
+            
+            // History logs for graphing
+            timeHistory: [],
+            tempHistory: [],
+            energySuppliedHistory: [],
+            energyUsefulHistory: []
+        };
+
+        // DOM Element Cache
+        const DOM = {
+            sliderPower: document.getElementById('sliderPower'),
+            valPower: document.getElementById('valPower'),
+            sliderMass: document.getElementById('sliderMass'),
+            valMass: document.getElementById('valMass'),
+            sliderT0: document.getElementById('sliderT0'),
+            valT0: document.getElementById('valT0'),
+            sliderEff: document.getElementById('sliderEff'),
+            valEff: document.getElementById('valEff'),
+            
+            btnPlayPause: document.getElementById('btnPlayPause'),
+            btnReset: document.getElementById('btnReset'),
+            playIcon: document.getElementById('playIcon'),
+            playBtnText: document.getElementById('playBtnText'),
+            stateBadge: document.getElementById('stateBadge'),
+            speedBtns: document.querySelectorAll('.btn-speed'),
+            
+            overlayTemp: document.getElementById('overlayTemp'),
+            overlayEnergy: document.getElementById('overlayEnergy'),
+            overlaySpeed: document.getElementById('overlaySpeed'),
+            
+            calcP: document.getElementById('calcP'),
+            calcT: document.getElementById('calcT'),
+            calcE: document.getElementById('calcE'),
+            calcE2: document.getElementById('calcE2'),
+            calcEff: document.getElementById('calcEff'),
+            calcQ: document.getElementById('calcQ'),
+            calcM: document.getElementById('calcM'),
+            calcSlope: document.getElementById('calcSlope'),
+            calcCurrentT: document.getElementById('calcCurrentT'),
+            latentHeatNotice: document.getElementById('latentHeatNotice'),
+            
+            simCanvas: document.getElementById('simCanvas'),
+            graphTempCanvas: document.getElementById('graphTempCanvas'),
+            graphEnergyCanvas: document.getElementById('graphEnergyCanvas')
+        };
+
+        // Canvas Contexts
+        const ctxSim = DOM.simCanvas.getContext('2d');
+        const ctxTemp = DOM.graphTempCanvas.getContext('2d');
+        const ctxEnergy = DOM.graphEnergyCanvas.getContext('2d');
+
+        // Particle System Storage
+        let energyBalls = [];
+        let waterMolecules = [];
+        let steamParticles = [];
+        let bubbleParticles = [];
+
+
+        // Initialize Water Molecule internal kinetic simulation grid
+        function initWaterMolecules() {
+            waterMolecules = [];
+            const count = 35;
+            for (let i = 0; i < count; i++) {
+                waterMolecules.push({
+                    relX: Math.random(), // relative inside beaker width (0.1 to 0.9)
+                    relY: Math.random(), // relative inside water height (0.1 to 0.9)
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    radius: 3 + Math.random() * 2
+                });
+            }
+        }
+
+        // Color Interpolation Helper: Blue (20°C) -> Orange (60°C) -> Red (100°C)
+        function getWaterColor(temp) {
+            const norm = Math.min(Math.max((temp - 10) / 90, 0), 1);
+            let r, g, b;
+            if (norm < 0.5) {
+                // Blue to Orange transition
+                const t = norm * 2;
+                r = Math.round(14 + t * (245 - 14));
+                g = Math.round(165 + t * (158 - 165));
+                b = Math.round(233 + t * (11 - 233));
+            } else {
+                // Orange to Fiery Red
+                const t = (norm - 0.5) * 2;
+                r = Math.round(245 + t * (239 - 245));
+                g = Math.round(158 - t * 100);
+                b = Math.round(11 + t * 20);
+            }
+            return { r, g, b, css: `rgb(${r}, ${g}, ${b})` };
+        }
+
+        // Reset All Simulation Parameters
+        function resetSimulation() {
+            state.isRunning = false;
+            state.timeElapsed = 0;
+            state.currentTemp = parseFloat(state.t0);
+            state.energySupplied = 0;
+            state.energyUseful = 0;
+            state.energyBoiling = 0;
+            state.steamMass = 0;
+            
+            state.timeHistory = [0];
+            state.tempHistory = [state.currentTemp];
+            state.energySuppliedHistory = [0];
+            state.energyUsefulHistory = [0];
+
+            energyBalls = [];
+            steamParticles = [];
+            bubbleParticles = [];
+            initWaterMolecules();
+
+            DOM.playIcon.className = "fa-solid fa-play";
+            DOM.playBtnText.textContent = "Start Simulation";
+            DOM.stateBadge.textContent = "Ready";
+            DOM.stateBadge.className = "text-xs px-2.5 py-1 rounded-full bg-slate-700 text-slate-300 font-mono";
+
+            updateUI();
+            renderAll();
+        }
+
+
+        // Handle Control Inputs
+        function setupEventListeners() {
+            DOM.sliderPower.addEventListener('input', (e) => {
+                state.power = parseFloat(e.target.value);
+                DOM.valPower.textContent = `${state.power} W`;
+                updateUI();
+            });
+
+            DOM.sliderMass.addEventListener('input', (e) => {
+                state.mass = parseFloat(e.target.value);
+                DOM.valMass.textContent = `${state.mass.toFixed(2)} kg`;
+                updateUI();
+                renderSimCanvas();
+            });
+
+            DOM.sliderT0.addEventListener('input', (e) => {
+                state.t0 = parseFloat(e.target.value);
+                DOM.valT0.textContent = `${state.t0} °C`;
+                if (!state.isRunning && state.timeElapsed === 0) {
+                    state.currentTemp = state.t0;
+                    state.tempHistory[0] = state.t0;
+                    updateUI();
+                    renderAll();
+                }
+            });
+
+            DOM.sliderEff.addEventListener('input', (e) => {
+                state.efficiency = parseFloat(e.target.value) / 100.0;
+                DOM.valEff.textContent = `${e.target.value} %`;
+                updateUI();
+            });
+
+            // Speed Selector Buttons
+            DOM.speedBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    DOM.speedBtns.forEach(b => {
+                        b.className = "btn-speed px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition";
+                    });
+                    btn.className = "btn-speed px-3 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold";
+                    state.simSpeed = parseFloat(btn.dataset.speed);
+                });
+            });
+
+            // Play / Pause Toggle
+            DOM.btnPlayPause.addEventListener('click', () => {
+                state.isRunning = !state.isRunning;
+                if (state.isRunning) {
+                    DOM.playIcon.className = "fa-solid fa-pause";
+                    DOM.playBtnText.textContent = "Pause";
+                    DOM.stateBadge.textContent = "Heating In Progress...";
+                    DOM.stateBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono animate-pulse";
+                } else {
+                    DOM.playIcon.className = "fa-solid fa-play";
+                    DOM.playBtnText.textContent = "Resume";
+                    DOM.stateBadge.textContent = "Paused";
+                    DOM.stateBadge.className = "text-xs px-2.5 py-1 rounded-full bg-slate-700 text-slate-300 font-mono";
+                }
+            });
+
+            // Reset Button
+            DOM.btnReset.addEventListener('click', resetSimulation);
+
+            // Responsive Canvas Resizing
+            window.addEventListener('resize', resizeCanvases);
+        }
+
+        function resizeCanvases() {
+            const fixCanvas = (canvas) => {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * window.devicePixelRatio || rect.width;
+                canvas.height = rect.height * window.devicePixelRatio || rect.height;
+            };
+            fixCanvas(DOM.simCanvas);
+            fixCanvas(DOM.graphTempCanvas);
+            fixCanvas(DOM.graphEnergyCanvas);
+            renderAll();
+        }
+
+
+        function updateUI() {
+            // Live Text Displays
+            DOM.overlayTemp.textContent = `${state.currentTemp.toFixed(1)} °C`;
+            DOM.overlayEnergy.textContent = `${(state.energySupplied / 1000).toFixed(2)} kJ`;
+
+            // Speed text indicator
+            let speedText = "Low";
+            if (state.currentTemp > 40) speedText = "Moderate";
+            if (state.currentTemp > 70) speedText = "High";
+            if (state.currentTemp >= 99.9) speedText = "Violent (Boiling)";
+            DOM.overlaySpeed.textContent = speedText;
+
+            // Live Calculation Cards
+            DOM.calcP.textContent = state.power;
+            DOM.calcT.textContent = state.timeElapsed.toFixed(1);
+            DOM.calcE.textContent = (state.energySupplied / 1000).toFixed(2);
+            DOM.calcE2.textContent = (state.energySupplied / 1000).toFixed(2);
+            DOM.calcEff.textContent = Math.round(state.efficiency * 100);
+            DOM.calcQ.textContent = (state.energyUseful / 1000).toFixed(2);
+            DOM.calcM.textContent = state.mass.toFixed(2);
+            
+            // Theoretical Slope calculation = (P * eff) / (m * c)
+            const theoreticalSlope = (state.power * state.efficiency) / (state.mass * C_WATER);
+            DOM.calcSlope.textContent = theoreticalSlope.toFixed(3);
+            DOM.calcCurrentT.textContent = state.currentTemp.toFixed(1);
+
+            if (state.currentTemp >= 100.0) {
+                const steamGrams = (state.steamMass * 1000).toFixed(1);
+                DOM.latentHeatNotice.innerHTML = `<span class="text-amber-400 font-semibold">Boiling Active (100°C)!</span> Latent Heat Absorption ($Q = m L_v$). Steam produced: <strong class="text-cyan-300">${steamGrams} g</strong>`;
+            } else {
+                DOM.latentHeatNotice.textContent = "Below 100°C: Kinetic energy of molecules increases with temperature.";
+            }
+        }
+
+
+        let lastFrameTime = performance.now();
+
+        function physicsStep(dtReal) {
+            if (!state.isRunning) return;
+
+            // Scaled simulation time step
+            const dtSim = dtReal * state.simSpeed;
+            state.timeElapsed += dtSim;
+
+            // Electrical Energy Supplied: E = P * t
+            const dE_supplied = state.power * dtSim;
+            state.energySupplied += dE_supplied;
+
+            // Useful Heat Absorbed: Q = E * efficiency
+            const dE_useful = dE_supplied * state.efficiency;
+            state.energyUseful += dE_useful;
+
+            // Temperature Increase logic: Q = m * c * dT
+            if (state.currentTemp < T_BOIL) {
+                const energyNeededToBoil = state.mass * C_WATER * (T_BOIL - state.currentTemp);
+
+                if (dE_useful < energyNeededToBoil) {
+                    const dT = dE_useful / (state.mass * C_WATER);
+                    state.currentTemp += dT;
+                } else {
+                    // Reached 100°C boundary during this step
+                    const excessEnergy = dE_useful - energyNeededToBoil;
+                    state.currentTemp = T_BOIL;
+                    state.energyBoiling += excessEnergy;
+                    state.steamMass = Math.min(state.mass, state.energyBoiling / LV_WATER);
+                }
+            } else {
+                // At 100°C -> Phase change (Latent Heat of Vaporization Q = m * Lv)
+                state.currentTemp = T_BOIL;
+                state.energyBoiling += dE_useful;
+                state.steamMass = Math.min(state.mass, state.energyBoiling / LV_WATER);
+            }
+
+            // Log graph historical data points every ~0.5s sim time
+            const lastLogTime = state.timeHistory[state.timeHistory.length - 1] || 0;
+            if (state.timeElapsed - lastLogTime >= 0.5) {
+                state.timeHistory.push(state.timeElapsed);
+                state.tempHistory.push(state.currentTemp);
+                state.energySuppliedHistory.push(state.energySupplied / 1000); // kJ
+                state.energyUsefulHistory.push(state.energyUseful / 1000);   // kJ
+            }
+
+            // Particle Spawning:
+            // 1. Energy Balls spawn rate proportional to Power
+            const spawnProb = (state.power / 3000) * (dtSim * 15);
+            if (Math.random() < spawnProb) {
+                energyBalls.push({
+                    x: 0, // relative inside coil
+                    y: 0, 
+                    vy: -(1.5 + Math.random() * 2),
+                    vx: (Math.random() - 0.5) * 1.5,
+                    life: 1.0,
+                    size: 4 + Math.random() * 5
+                });
+            }
+
+            // 2. Steam & Bubbles at 100°C
+            if (state.currentTemp >= 99.5) {
+                if (Math.random() < 0.6) {
+                    bubbleParticles.push({
+                        relX: 0.2 + Math.random() * 0.6,
+                        relY: 0.8,
+                        vy: -(2 + Math.random() * 3),
+                        r: 2 + Math.random() * 4
+                    });
+                }
+                if (Math.random() < 0.5) {
+                    steamParticles.push({
+                        relX: 0.2 + Math.random() * 0.6,
+                        yOffset: 0,
+                        vx: (Math.random() - 0.5) * 1,
+                        vy: -(1 + Math.random() * 2),
+                        alpha: 0.8,
+                        r: 6 + Math.random() * 8
+                    });
+                }
+            }
+            
+            updateUI();
+        }
+
+
+        function renderSimCanvas() {
+            const width = DOM.simCanvas.width;
+            const height = DOM.simCanvas.height;
+            ctxSim.clearRect(0, 0, width, height);
+
+            // Dimensions & Layout Parameters
+            const beakerWidth = width * 0.55;
+            const beakerHeight = height * 0.68;
+            const beakerLeft = (width - beakerWidth) / 2 - 20;
+            const beakerBottom = height * 0.88;
+            const beakerTop = beakerBottom - beakerHeight;
+
+            // Water Level scaled with mass (0.1kg to 1.0kg maps to 25% to 85% beaker height)
+            const waterHeightRatio = 0.25 + (state.mass - 0.1) / (0.9) * 0.60;
+            const currentWaterHeight = beakerHeight * waterHeightRatio;
+            const waterTop = beakerBottom - currentWaterHeight;
+
+            const waterColorObj = getWaterColor(state.currentTemp);
+
+            // 1. Draw Water Body
+            ctxSim.save();
+            ctxSim.fillStyle = waterColorObj.css;
+            ctxSim.globalAlpha = 0.75;
+            ctxSim.beginPath();
+            ctxSim.roundRect(beakerLeft + 6, waterTop, beakerWidth - 12, currentWaterHeight - 4, [0, 0, 12, 12]);
+            ctxSim.fill();
+            ctxSim.restore();
+
+            // 2. Water Molecule Kinetic Jittering
+            const kineticSpeed = 0.5 + (state.currentTemp / 100) * 5.0; // speed scales with temp
+            ctxSim.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            waterMolecules.forEach(m => {
+                m.relX += (m.vx * kineticSpeed * 0.005);
+                m.relY += (m.vy * kineticSpeed * 0.005);
+
+                // Boundary bounce inside water rect
+                if (m.relX < 0.05 || m.relX > 0.95) m.vx *= -1;
+                if (m.relY < 0.08 || m.relY > 0.92) m.vy *= -1;
+
+                const mx = beakerLeft + 15 + m.relX * (beakerWidth - 30);
+                const my = waterTop + 10 + m.relY * (currentWaterHeight - 20);
+
+                ctxSim.beginPath();
+                ctxSim.arc(mx, my, m.radius, 0, Math.PI * 2);
+                ctxSim.fill();
+            });
+
+            // 3. Draw Immersion Heating Element Coil
+            const coilCenterX = beakerLeft + beakerWidth * 0.45;
+            const coilBottomY = beakerBottom - 25;
+            const coilWidth = 40;
+            const coilHeight = 70;
+
+            // Glow effect proportional to Power setting and simulation run state
+            if (state.isRunning) {
+                const glowIntensity = (state.power / 3000) * 30;
+                ctxSim.save();
+                ctxSim.shadowColor = state.power > 1500 ? '#ff3300' : '#ffaa00';
+                ctxSim.shadowBlur = glowIntensity;
+                ctxSim.strokeStyle = state.power > 2000 ? '#ffffaa' : '#ff6600';
+                ctxSim.lineWidth = 6;
+            } else {
+                ctxSim.strokeStyle = '#64748b';
+                ctxSim.lineWidth = 5;
+            }
+
+            // Draw spiral heating coil wire
+            ctxSim.beginPath();
+            ctxSim.moveTo(coilCenterX - 10, beakerTop - 20);
+            ctxSim.lineTo(coilCenterX - 10, coilBottomY - coilHeight);
+            
+            // Loops
+            for (let i = 0; i < 4; i++) {
+                const y = coilBottomY - coilHeight + (i * 15);
+                ctxSim.arc(coilCenterX, y, 14, Math.PI, 0, true);
+            }
+            ctxSim.lineTo(coilCenterX + 10, beakerTop - 20);
+            ctxSim.stroke();
+            if (state.isRunning) ctxSim.restore();
+
+            // 4. Energy Balls Animation (Floating Orbs from Heater to Water)
+            for (let i = energyBalls.length - 1; i >= 0; i--) {
+                const p = energyBalls[i];
+                p.y += p.vy;
+                p.x += p.vx;
+                p.life -= 0.02;
+
+                if (p.life <= 0) {
+                    energyBalls.splice(i, 1);
+                    continue;
+                }
+
+                const px = coilCenterX + p.x;
+                const py = coilBottomY - 30 + p.y;
+
+                ctxSim.save();
+                ctxSim.beginPath();
+                ctxSim.arc(px, py, p.size * p.life, 0, Math.PI * 2);
+                const grad = ctxSim.createRadialGradient(px, py, 0, px, py, p.size);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.5, '#ffea00');
+                grad.addColorStop(1, 'rgba(255, 107, 0, 0)');
+                ctxSim.fillStyle = grad;
+                ctxSim.fill();
+                ctxSim.restore();
+            }
+
+            // 5. Bubbles & Steam Animations
+            if (state.currentTemp >= 95.0) {
+                // Render Bubbles inside water
+                ctxSim.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctxSim.lineWidth = 1.5;
+                for (let i = bubbleParticles.length - 1; i >= 0; i--) {
+                    const b = bubbleParticles[i];
+                    b.relY += b.vy * 0.005;
+                    const bx = beakerLeft + b.relX * beakerWidth;
+                    const by = beakerBottom - (1 - b.relY) * currentWaterHeight;
+
+                    if (by <= waterTop) {
+                        bubbleParticles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctxSim.beginPath();
+                    ctxSim.arc(bx, by, b.r, 0, Math.PI * 2);
+                    ctxSim.stroke();
+                }
+
+                // Render Steam rising from surface
+                for (let i = steamParticles.length - 1; i >= 0; i--) {
+                    const s = steamParticles[i];
+                    s.yOffset += s.vy;
+                    s.relX += s.vx * 0.002;
+                    s.alpha -= 0.015;
+
+                    if (s.alpha <= 0) {
+                        steamParticles.splice(i, 1);
+                        continue;
+                    }
+
+                    const sx = beakerLeft + s.relX * beakerWidth;
+                    const sy = waterTop + s.yOffset;
+
+                    ctxSim.save();
+                    ctxSim.fillStyle = `rgba(226, 232, 240, ${s.alpha * 0.5})`;
+                    ctxSim.beginPath();
+                    ctxSim.arc(sx, sy, s.r * (2 - s.alpha), 0, Math.PI * 2);
+                    ctxSim.fill();
+                    ctxSim.restore();
+                }
+            }
+
+            // 6. Draw Glass Beaker Outline & Markings
+            ctxSim.strokeStyle = '#94a3b8';
+            ctxSim.lineWidth = 4;
+            ctxSim.beginPath();
+            ctxSim.moveTo(beakerLeft, beakerTop);
+            ctxSim.lineTo(beakerLeft, beakerBottom);
+            ctxSim.lineTo(beakerLeft + beakerWidth, beakerBottom);
+            ctxSim.lineTo(beakerLeft + beakerWidth, beakerTop);
+            ctxSim.stroke();
+
+            // Glass Beaker Lip
+            ctxSim.beginPath();
+            ctxSim.moveTo(beakerLeft - 8, beakerTop);
+            ctxSim.lineTo(beakerLeft + 5, beakerTop);
+            ctxSim.moveTo(beakerLeft + beakerWidth - 5, beakerTop);
+            ctxSim.lineTo(beakerLeft + beakerWidth + 8, beakerTop);
+            ctxSim.stroke();
+
+            // Volume Graduation Lines (e.g. 200ml, 400ml...)
+            ctxSim.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctxSim.lineWidth = 1.5;
+            ctxSim.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctxSim.font = '10px monospace';
+            for (let i = 1; i <= 4; i++) {
+                const markY = beakerBottom - (beakerHeight * 0.18 * i);
+                ctxSim.beginPath();
+                ctxSim.moveTo(beakerLeft + 4, markY);
+                ctxSim.lineTo(beakerLeft + 16, markY);
+                ctxSim.stroke();
+                ctxSim.fillText(`${i * 0.25} kg`, beakerLeft + 20, markY + 3);
+            }
+
+            // 7. Draw Submerged Thermometer & Mercury Column
+            const thermX = beakerLeft + beakerWidth + 25;
+            const thermTop = beakerTop - 15;
+            const thermBottom = beakerBottom - 10;
+            const thermHeight = thermBottom - thermTop;
+
+            // Thermometer Glass Outer Tube
+            ctxSim.fillStyle = '#1e293b';
+            ctxSim.strokeStyle = '#64748b';
+            ctxSim.lineWidth = 2;
+            ctxSim.beginPath();
+            ctxSim.roundRect(thermX - 6, thermTop, 12, thermHeight, 6);
+            ctxSim.fill();
+            ctxSim.stroke();
+
+            // Mercury Bulb
+            ctxSim.fillStyle = '#ef4444';
+            ctxSim.beginPath();
+            ctxSim.arc(thermX, thermBottom, 10, 0, Math.PI * 2);
+            ctxSim.fill();
+
+            // Mercury Fill Level (0°C to 110°C scale)
+            const mercFillRatio = Math.min(Math.max(state.currentTemp / 110.0, 0.05), 1.0);
+            const mercHeight = (thermHeight - 20) * mercFillRatio;
+            ctxSim.fillRect(thermX - 3, thermBottom - mercHeight, 6, mercHeight);
+
+            // Thermometer Temperature Tick Marks (0°C, 50°C, 100°C)
+            ctxSim.fillStyle = '#94a3b8';
+            ctxSim.font = '9px monospace';
+            [0, 50, 100].forEach(deg => {
+                const tickY = thermBottom - ((thermHeight - 20) * (deg / 110.0));
+                ctxSim.beginPath();
+                ctxSim.moveTo(thermX + 7, tickY);
+                ctxSim.lineTo(thermX + 13, tickY);
+                ctxSim.stroke();
+                ctxSim.fillText(`${deg}°C`, thermX + 16, tickY + 3);
+            });
+        }
+
+
+        function renderGraphs() {
+            // Helper to draw clean grid axes
+            const drawGrid = (ctx, w, h, xLabel, yLabel, yMax) => {
+                ctx.clearRect(0, 0, w, h);
+                const padL = 35, padR = 15, padT = 20, padB = 25;
+                const plotW = w - padL - padR;
+                const plotH = h - padT - padB;
+
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.font = '10px sans-serif';
+                ctx.fillStyle = '#94a3b8';
+
+                // Horizontal Grid lines (4 divisions)
+                for (let i = 0; i <= 4; i++) {
+                    const y = padT + (plotH / 4) * i;
+                    const val = (yMax * (1 - i / 4)).toFixed(0);
+                    ctx.beginPath();
+                    ctx.moveTo(padL, y);
+                    ctx.lineTo(w - padR, y);
+                    ctx.stroke();
+                    ctx.fillText(val, 5, y + 3);
+                }
+
+                // Vertical Grid lines (4 time divisions)
+                const maxTime = Math.max(Math.max(...state.timeHistory, 10), 30);
+                for (let i = 0; i <= 4; i++) {
+                    const x = padL + (plotW / 4) * i;
+                    const val = ((maxTime / 4) * i).toFixed(0);
+                    ctx.beginPath();
+                    ctx.moveTo(x, padT);
+                    ctx.lineTo(x, h - padB);
+                    ctx.stroke();
+                    ctx.fillText(`${val}s`, x - 8, h - 8);
+                }
+
+                // Axis Title Labels
+                ctx.fillStyle = '#cbd5e1';
+                ctx.fillText(xLabel, w / 2 - 15, h - 2);
+
+                return { padL, padR, padT, padB, plotW, plotH, maxTime };
+            };
+
+            // 1. Render Temp vs Time Graph
+            const wT = DOM.graphTempCanvas.width;
+            const hT = DOM.graphTempCanvas.height;
+            const gT = drawGrid(ctxTemp, wT, hT, "Time t (s)", "T (°C)", 120);
+
+            if (state.timeHistory.length > 1) {
+                ctxTemp.strokeStyle = '#f59e0b'; // Amber Line
+                ctxTemp.lineWidth = 2.5;
+                ctxTemp.beginPath();
+
+                for (let i = 0; i < state.timeHistory.length; i++) {
+                    const x = gT.padL + (state.timeHistory[i] / gT.maxTime) * gT.plotW;
+                    const y = gT.padT + (1 - state.tempHistory[i] / 120) * gT.plotH;
+
+                    if (i === 0) ctxTemp.moveTo(x, y);
+                    else ctxTemp.lineTo(x, y);
+                }
+                ctxTemp.stroke();
+            }
+
+            // 2. Render Energy vs Time Graph
+            const wE = DOM.graphEnergyCanvas.width;
+            const hE = DOM.graphEnergyCanvas.height;
+            const maxE = Math.max(Math.max(...state.energySuppliedHistory, 10), 100);
+            const gE = drawGrid(ctxEnergy, wE, hE, "Time t (s)", "E (kJ)", maxE);
+
+            if (state.timeHistory.length > 1) {
+                // Electrical Input Line (Dashed Cyan)
+                ctxEnergy.strokeStyle = '#00d2ff';
+                ctxEnergy.lineWidth = 2;
+                ctxEnergy.setLineDash([4, 4]);
+                ctxEnergy.beginPath();
+
+                for (let i = 0; i < state.timeHistory.length; i++) {
+                    const x = gE.padL + (state.timeHistory[i] / gE.maxTime) * gE.plotW;
+                    const y = gE.padT + (1 - state.energySuppliedHistory[i] / maxE) * gE.plotH;
+
+                    if (i === 0) ctxEnergy.moveTo(x, y);
+                    else ctxEnergy.lineTo(x, y);
+                }
+                ctxEnergy.stroke();
+                ctxEnergy.setLineDash([]); // Reset dash
+
+                // Useful Heat Line (Solid Purple)
+                ctxEnergy.strokeStyle = '#c084fc';
+                ctxEnergy.lineWidth = 2;
+                ctxEnergy.beginPath();
+
+                for (let i = 0; i < state.timeHistory.length; i++) {
+                    const x = gE.padL + (state.timeHistory[i] / gE.maxTime) * gE.plotW;
+                    const y = gE.padT + (1 - state.energyUsefulHistory[i] / maxE) * gE.plotH;
+
+                    if (i === 0) ctxEnergy.moveTo(x, y);
+                    else ctxEnergy.lineTo(x, y);
+                }
+                ctxEnergy.stroke();
+            }
+        }
+
+        function renderAll() {
+            renderSimCanvas();
+            renderGraphs();
+        }
+
+
+        function mainLoop(now) {
+            const dtReal = (now - lastFrameTime) / 1000.0;
+            lastFrameTime = now;
+
+            // Cap maximum delta time to prevent physics blowup on background tabs
+            const safeDt = Math.min(dtReal, 0.1);
+
+            physicsStep(safeDt);
+            renderAll();
+
+            requestAnimationFrame(mainLoop);
+        }
+
+        // Window Load Initializer
+        window.onload = function() {
+            setupEventListeners();
+            resizeCanvases();
+            resetSimulation();
+            requestAnimationFrame(mainLoop);
+        };
+    </script>
+</body>
+</html>
